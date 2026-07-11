@@ -1,9 +1,10 @@
 //Defines users table, storing profile,auth,gameification data
 
 import { integer, pgTable,text,timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
-import { relations } from "drizzle-orm/_relations";
+import { sql,relations } from "drizzle-orm";
 import { userAchievements } from "./achievements";
+import { progress } from "./progress";
+import { enrollments } from "./enrollments";
 
 export const users= pgTable(
     "users",
@@ -39,4 +40,6 @@ export const users= pgTable(
 //set up relations: a user can have many achievements,enrollments,and progress records
 export const userRelations = relations(users,({many})=>({
     achievements:many(userAchievements),
+    enrollments:many(enrollments),
+    progress:many(progress),
 }))
