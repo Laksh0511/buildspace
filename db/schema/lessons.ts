@@ -1,5 +1,5 @@
 import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { courses } from "./courses";
 import { progress } from "./progress";
 
