@@ -2,6 +2,8 @@
 
 import { integer, pgTable,text,timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { relations } from "drizzle-orm/_relations";
+import { userAchievements } from "./achievements";
 
 export const users= pgTable(
     "users",
@@ -34,3 +36,7 @@ export const users= pgTable(
     },
 );
 
+//set up relations: a user can have many achievements,enrollments,and progress records
+export const userRelations = relations(users,({many})=>({
+    achievements:many(userAchievements),
+}))
