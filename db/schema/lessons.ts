@@ -18,3 +18,12 @@ export const lessons = pgTable("lessons", {
     .references(() => courses.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+//lesson belongs to one course and can have many progress records
+export const lessonRelations=relations(lessons,({one,many})=>({
+    course: one(courses,{
+        fields:[lessons.courseId],
+        references:[courses.id],
+    }),
+
+    progress: many(progress),
+}))

@@ -8,7 +8,7 @@ import {
   json,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { users } from "./users";
 
 // Defines the "achievements" table, storing achievement details
@@ -48,4 +48,24 @@ export const userAchievements = pgTable(
       ),
     };
   },
+);
+
+//One achievement can be earned by many users (userAchievements)
+export const achievementsRelation=relations(achievements,({many})=>({
+    users:many(userAchievements),
+}))
+
+//a user achievement links to one user and one achievement
+export const userAchievementsRelations = relations(
+  userAchievements,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userAchievements.userId],
+      references: [users.id],
+    }),
+    achievement: one(achievements, {
+      fields: [userAchievements.achievementId],
+      references: [achievements.id],
+    }),
+  }),
 );
