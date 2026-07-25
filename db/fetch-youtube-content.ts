@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import * as dotenv from "dotenv";
+import { db } from "@db/drizzle";
 dotenv.config({path:".env"});
 
 const youtube= google.youtube({
@@ -81,32 +82,105 @@ async function fetchPlaylistVideos(playlistId: string, playlistTitle: string) {
 }
 
 //seed the db
-async function seedCoursesFromPlaylists(){
-    console.log("Starting youtube content import...");
+async function seedCoursesFromPlaylists() {
+  console.log("🚀 Starting YouTube content import...\n");
 
+  // 1. Fetch all playlists
+  const playlists = await fetchChannelPlaylists();
 
-    //fetch all playlists
-    const playlists=await fetchChannelPlaylists();
-    //filter out system playlists
-    const coursePlaylists=playlists.filter((playlist)=>{
-        const title=playlist.snippet?.title||"";
-        //skip system playlists
-        const isSystemPlaylist= title==="Uploads"||title==="Favorites"||title==="Watch Later"||title==="Liked videos";
-        return !isSystemPlaylist;
-    })
+  // 2. Filter out system playlists (uploads, liked, etc.)
+  const coursePlaylists = playlists.filter((playlist) => {
+    const title = playlist.snippet?.title || "";
+    // Skip system playlists
+    const isSystemPlaylist =
+      title === "Uploads" || title === "Liked videos" || title === "Favorites";
+    return !isSystemPlaylist;
+  });
 
-    console.log(`Processing ${coursePlaylists.length} course playlists ...\n`);
+  console.log(`📚 Processing ${coursePlaylists.length} course playlists...\n`);
 
-    let coursesAdded=0;
-    let lessonsAdded=0;
-    //Process each playlist as a course
-    for(const playlist of coursePlaylists){
-        const playlistId=playlist.id;
-        const snippet=playlist.snippet;
+  let coursesAdded = 0;
+  let lessonsAdded = 0;
 
+  // 3. Process each playlist as a course
+  for (const playlist of coursePlaylists) {
+    const playlistId = playlist.id!;
+    const snippet = playlist.snippet!;
+    const contentDetails = playlist.contentDetails!;
+
+    const title = snippet.title || "Untitled Course";
+    const description =
+      snippet.description ||
+      `Complete ${title} course for beginners. Learn ${title.toLowerCase()} with practical examples and hands-on projects.`;
+    const videoCount = contentDetails.itemCount || 0;
+    const thumbnail =
+      snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || null;
+
+    const duration = calculateDuration(videoCount);
+    const points = calculatePoints(videoCount);
+
+    console.log(`📖 Processing course: ${title}`);
+    console.log(
+      `    Videos: ${videoCount}, Difficulty: ${difficulty}, XP: ${points}`,
+    );
+
+    // Check if course already exists
+    const existingCourse = await db.query.courses.findFirst({
+      where: (courses, { eq }) => eq(courses.title, title),
+    });
+
+    if (existingCourse) {
+      console.log(`    ⏭️  Course already exists, skipping...`);
+      continue;
     }
 
+    // Insert course
+    const [course] = await db
+      .insert(courses)
+      .values({
+        title: title,
+        description: description,
+        difficulty: difficulty,
+        duration: duration,
+        points: points,
+        thumbnail: thumbnail,
+      })
+      .returning();
+
+    coursesAdded++;
+
+    // Fetch videos for this playlist
+    const videos = await fetchPlaylistVideos(playlistId, title);
+
+    // Insert lessons
+    if (videos.length > 0) {
+      const lessonValues = videos.map((video, index) => {
+        const videoSnippet = video.snippet!;
+        const videoId = video.contentDetails?.videoId;
+
+        return {
+          title: videoSnippet.title || `Lesson ${index + 1}`,
+          content:
+            videoSnippet.description ||
+            `Watch this video to learn ${title.toLowerCase()}. Complete tutorial with practical examples.`,
+          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          order: index + 1,
+          courseId: course.id,
+        };
+      });
+
+      await db.insert(lessons).values(lessonValues);
+      lessonsAdded += lessonValues.length;
+    }
+
+    console.log(`    ✅ Added ${videos.length} lessons\n`);
+  }
+
+  console.log("✨ Import complete!");
+  console.log(`   📚 Courses added: ${coursesAdded}`);
+  console.log(`   📹 Lessons added: ${lessonsAdded}`);
 }
+
 
 //run imports
 seedCoursesFromPlaylists().then(()=>{

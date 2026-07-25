@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# drizzle (database metadata) in db folder
+/db/.drizzle
+/db/.drizzle/*
+/db/.drizzle-meta
+/db/.drizzle-meta/*
+/db/drizzle
+/db/drizzle/*
